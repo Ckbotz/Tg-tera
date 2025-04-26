@@ -24,15 +24,21 @@ aria2.set_global_options(options)
 
 
 async def download_video(url, reply_msg, user_mention, user_id):
-    response = requests.get(f"http://True12g.in/api/terabox.php?url={url}")
+    encoded_url = requests.utils.quote(url, safe='')
+    api_url = f"http://terabox.silentxbotz.tech/api/download?url={encoded_url}&token=TERAXBOTZ"
+
+    response = requests.get(api_url)
     response.raise_for_status()
     data = response.json()
 
-    resolutions = data["response"][0]["resolutions"]
-    fast_download_link = resolutions["Fast Download"]
-    hd_download_link = resolutions["HD Video"]
-    thumbnail_url = data["response"][0]["thumbnail"]
-    video_title = data["response"][0]["title"]
+    if not data.get("success"):
+        await reply_msg.edit_text("Failed to fetch video info from API.")
+        return None, None, None
+
+    video_info = data["data"][0]
+    hd_download_link = video_info["link"]
+    thumbnail_url = video_info["thumb"]
+    video_title = video_info["filename"]
 
     try:
         download = aria2.add_uris([hd_download_link])
@@ -73,16 +79,16 @@ async def download_video(url, reply_msg, user_mention, user_id):
             await reply_msg.edit_text("ᴜᴘʟᴏᴀᴅɪɴɢ...")
 
             return file_path, thumbnail_path, video_title
+
     except Exception as e:
-        logging.error(f"Error handling message: {e}")
+        logging.error(f"Error handling download: {e}")
         buttons = [
-            [InlineKeyboardButton("🚀 HD Video", url=hd_download_link)],
-            [InlineKeyboardButton("⚡ Fast Download", url=fast_download_link)],
+            [InlineKeyboardButton("🚀 Download", url=hd_download_link)],
             [InlineKeyboardButton('ᴍᴏʀᴇ ᴠɪᴅᴇᴏꜱ', switch_inline_query_current_chat='')]
         ]
         reply_markup = InlineKeyboardMarkup(buttons)
         await reply_msg.reply_text(
-            "Fast Download Link For this Video is Broken, Download manually using the Link Below.",
+            "Download failed. You can download manually using the button below.",
             reply_markup=reply_markup
         )
         return None, None, None
